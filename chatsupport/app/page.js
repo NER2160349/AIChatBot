@@ -1,92 +1,268 @@
-export default function Home() {
+"use client";
+import { doc, setDoc } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import {
+  Button,
+  TextField,
+  Box,
+  Typography,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import { SnackbarProvider, useSnackbar } from "notistack";
+import { firestore, auth } from "@/firebase";
+import { updateProfile, sendEmailVerification } from "firebase/auth";
+
+const googleProvider = new GoogleAuthProvider();
+
+const Auth = () => {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [openSignUpModal, setOpenSignUpModal] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const { enqueueSnackbar } = useSnackbar();
+
+  const checkAuthStatus = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      if (user.emailVerified) {
+        router.push("/main"); // Redirect to main page if authenticated and email is verified
+      } else {
+        enqueueSnackbar("Please verify your email address.", {
+          variant: "info",
+        });
+      }
+    } else {
+      setLoading(false); // Allow user to interact with the authentication page
+    }
+  };
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      router.push("/main");
+    } catch (error) {
+      console.error(error);
+      enqueueSnackbar("Google sign-in failed. Please try again.", {
+        variant: "error",
+      });
+    }
+  };
+
+  const handleEmailSignIn = async () => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      if (user.emailVerified) {
+        router.push("/main");
+      } else {
+        enqueueSnackbar("Please verify your email address.", {
+          variant: "info",
+        });
+        await auth.signOut();
+      }
+    } catch (error) {
+      console.error("Sign In Error", error);
+      if (error.code.includes("main/user-not-found")) {
+        enqueueSnackbar("Wrong email. Please check your email address.", {
+          variant: "error",
+        });
+      } else if (error.code.includes("main/wrong-password")) {
+        enqueueSnackbar("Wrong password. Please check your password.", {
+          variant: "error",
+        });
+      } else {
+        enqueueSnackbar("Sign-in failed. Please try again.", {
+          variant: "error",
+        });
+      }
+    }
+  };
+
+  const handleSignUpClick = () => {
+    setOpenSignUpModal(true);
+  };
+
+  const handleSignUpSubmit = async () => {
+    if (!email) {
+      enqueueSnackbar("Email is required.", { variant: "warning" });
+      return;
+    }
+    if (!password) {
+      enqueueSnackbar("Password is required.", { variant: "warning" });
+      return;
+    }
+    if (password.length < 6) {
+      enqueueSnackbar("Password must be at least 6 characters long.", {
+        variant: "warning",
+      });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      enqueueSnackbar("Invalid email format.", { variant: "warning" });
+      return;
+    }
+    if (!fullName) {
+      enqueueSnackbar("Full name is required.", { variant: "warning" });
+      return;
+    }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      await updateProfile(user, { displayName: fullName });
+      await sendEmailVerification(user);
+      await setDoc(doc(firestore, `users/${user.uid}`), { name: fullName });
+
+      enqueueSnackbar(
+        "A verification email has been sent. Please verify your email address.",
+        { variant: "info" }
+      );
+      
+      // Wait for the Snackbar to be displayed before closing the modal
+      setTimeout(() => {
+        setOpenSignUpModal(false); // Close the modal after the delay
+      }, 3000); // Delay in milliseconds (adjust as needed)
+
+      await auth.signOut();
+      router.push("/main");
+    } catch (error) {
+      console.error("Sign Up Error:", error);
+      enqueueSnackbar("Sign-up failed. Please try again.", {
+        variant: "error",
+      });
+    }
+  };
+
+  if (loading) {
+    return <Typography>Loading...</Typography>;
+  }
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <Box
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      height="100vh"
+      sx={{ marginTop: "-50px" }}
+    >
+      <img
+        src="/images/chatbot.jpg"
+        alt="Logo"
+        style={{
+          maxWidth: "80%",
+          height: "auto",
+          maxHeight: "30vh",
+        }}
+      />
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      <Typography variant="h4" gutterBottom sx={{ mb: 5 }}>
+        Sign In
+      </Typography>
+      <Button variant="contained" onClick={handleGoogleSignIn} sx={{ mb: 2 }}>
+        Sign in with Google
+      </Button>
+      <Typography variant="h6">or</Typography>
+      <TextField
+        label="Email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        margin="normal"
+      />
+      <TextField
+        label="Password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        sx={{ mb: 3 }}
+      />
+      <Button variant="contained" onClick={handleEmailSignIn}>
+        Sign In with Email
+      </Button>
+      <Button
+        variant="outlined"
+        onClick={handleSignUpClick}
+        style={{ marginTop: "16px" }}
+      >
+        Sign Up
+      </Button>
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+      <Dialog open={openSignUpModal} onClose={() => setOpenSignUpModal(false)}>
+        <DialogTitle>Sign Up</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Full Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Email"
+            type="email"
+            fullWidth
+            variant="outlined"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenSignUpModal(false)}>Cancel</Button>
+          <Button onClick={handleSignUpSubmit}>Sign Up</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+function App() {
+  return (
+    <SnackbarProvider maxSnack={3}>
+      <Auth />
+    </SnackbarProvider>
   );
 }
+
+export default App;
