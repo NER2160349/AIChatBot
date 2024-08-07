@@ -36,13 +36,14 @@ const Auth = () => {
   const checkAuthStatus = async () => {
     const user = auth.currentUser;
     if (user) {
-      if (user.emailVerified) {
+      // if (user.emailVerified) {
         router.push("/main"); // Redirect to main page if authenticated and email is verified
-      } else {
-        enqueueSnackbar("Please verify your email address.", {
-          variant: "info",
-        });
-      }
+      // } 
+      // else {
+      //   enqueueSnackbar("Please verify your email address.", {
+      //     variant: "info",
+      //   });
+      // }
     } else {
       setLoading(false); // Allow user to interact with the authentication page
     }
@@ -66,21 +67,22 @@ const Auth = () => {
 
   const handleEmailSignIn = async () => {
     try {
-      const userCredential = await signInWithEmailAndPassword(
+      // const userCredential = 
+        await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
-      const user = userCredential.user;
+      // const user = userCredential.user;
 
-      if (user.emailVerified) {
+      // if (user.emailVerified) {
         router.push("/main");
-      } else {
-        enqueueSnackbar("Please verify your email address.", {
-          variant: "info",
-        });
-        await auth.signOut();
-      }
+      // } else {
+      //   enqueueSnackbar("Please verify your email address.", {
+      //     variant: "info",
+      //   });
+      //   await auth.signOut();
+      // }
     } catch (error) {
       console.error("Sign In Error", error);
       if (error.code.includes("main/user-not-found")) {
@@ -136,18 +138,18 @@ const Auth = () => {
       const user = userCredential.user;
 
       await updateProfile(user, { displayName: fullName });
-      await sendEmailVerification(user);
+      // await sendEmailVerification(user);
       await setDoc(doc(firestore, `users/${user.uid}`), { name: fullName });
 
-      enqueueSnackbar(
-        "A verification email has been sent. Please verify your email address.",
-        { variant: "info" }
-      );
+      // enqueueSnackbar(
+      //   "A verification email has been sent. Please verify your email address.",
+      //   { variant: "info" }
+      // );
       
       // Wait for the Snackbar to be displayed before closing the modal
-      setTimeout(() => {
+      // setTimeout(() => {
         setOpenSignUpModal(false); // Close the modal after the delay
-      }, 3000); // Delay in milliseconds (adjust as needed)
+      // }, 3000); // Delay in milliseconds (adjust as needed)
 
       await auth.signOut();
       router.push("/main");
