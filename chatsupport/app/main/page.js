@@ -56,7 +56,7 @@ export default function Home() {
       const userName = user.displayName || "User";
       setName(userName); // Set the user's name
       setMessages([
-        { role: "assistant", content: `Hello ${userName}! How can I help you today?` }
+        { role: "assistant", content: `Hello ${userName}! How can I help you today?I'll be happy to assist you with any questions or concerns you may have about Toxiscan.` }
       ]);
       setUser(user); // Set the user in state for future reference
     }
