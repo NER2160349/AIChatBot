@@ -5,15 +5,17 @@ import {
   Button,
   Stack,
   TextField,
-  Typography,
   createTheme,
   ThemeProvider,
   CssBaseline,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Typography
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import {auth} from "@/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 // Define light and dark themes
 const lightTheme = createTheme({
@@ -42,6 +44,7 @@ const darkTheme = createTheme({
 
 
 export default function Home() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [name, setName] = useState(""); // State for storing user's name
   const [messages, setMessages] = useState([]);
@@ -50,17 +53,21 @@ export default function Home() {
   const messagesEndRef = useRef(null); // Ref to scroll to the bottom
 
   useEffect(() => {
-    const user = auth.currentUser;
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        const userName = user.displayName || "User";
+        setName(userName); // Set the user's name
+        setMessages([
+          { role: "assistant", content: `Hello ${userName}! How can I help you today? I'll be happy to assist you with any questions or concerns you may have about Toxiscan.` }
+        ]);
+        setUser(user); // Set the user in state for future reference
+      } else {
+        router.push("/"); // Redirect to the login page if not authenticated
+      }
+    });
 
-    if (user) {
-      const userName = user.displayName || "User";
-      setName(userName); // Set the user's name
-      setMessages([
-        { role: "assistant", content: `Hello ${userName}! How can I help you today?I'll be happy to assist you with any questions or concerns you may have about Toxiscan.` }
-      ]);
-      setUser(user); // Set the user in state for future reference
-    }
-  }, []);
+    return () => unsubscribe(); // Clean up the listener when the component unmounts
+  }, [router]);
 
   
   const sendMessage = async () => {
@@ -127,6 +134,16 @@ export default function Home() {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+  const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    router.push("/");
+  } catch (error) {
+    console.error("Error signing out: ", error);
+    alert(`Error signing out: ${error.message}`);
+  }
+};
+
 
   return (
     <ThemeProvider theme={theme === "light" ? lightTheme : darkTheme}>
@@ -138,48 +155,65 @@ export default function Home() {
       flexDirection="row"
       position="relative"
     >
-      <FormControlLabel
-        control={
-          <Switch
-            checked={theme === 'dark'}
-            onChange={toggleTheme}
-            sx={{
-              position: 'absolute',
-              top: 16,
-              right: 16,
-              '& .MuiSwitch-thumb': {
-                borderRadius: '8px',
-                padding: '4px',
-              },
-              '& .MuiSwitch-track': {
-                borderRadius: '8px',
-              },
-            }}
-          />
-        }
-        label={theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-        sx={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          display: 'flex',
-          alignItems: 'center',
-          '& .MuiFormControlLabel-label': {
-            paddingLeft: '8px',
-          },
-        }}
-      />
+     <Box
+  sx={{
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    bgcolor: "grey",
+    padding: '18px'
+  }}
+>
+       <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+         ToxiGuide
+       </Typography>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <FormControlLabel
+      control={
+        <Switch
+          checked={theme === 'dark'}
+          onChange={toggleTheme}
+          sx={{
+            '& .MuiSwitch-thumb': {
+              borderRadius: '8px',
+              padding: '4px',
+            },
+            '& .MuiSwitch-track': {
+              borderRadius: '8px',
+            },
+          }}
+        />
+      }
+      label={theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+      sx={{
+        '& .MuiFormControlLabel-label': {
+          paddingLeft: '8px',
+        },
+      }}
+    />
+    <Button variant="standard" onClick={handleLogout}>
+      Logout
+    </Button>
+  </Box>
+</Box>
+
+      
      
 
       <Stack
         direction={'column'}
         width="500px"
         maxHeight="700px"
-        border="1px solid"
-        borderColor="text.primary"
+        //border="1px solid"
+        borderColor="grey"
         p={2}
         spacing={3}
         flexGrow={1}
+        marginTop={8}
       >
         <Stack 
           direction={"column"} 
